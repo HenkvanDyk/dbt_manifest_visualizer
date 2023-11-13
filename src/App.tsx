@@ -1,7 +1,5 @@
-import './App.css'
-
 import React, { useRef, useEffect } from 'react';
-import { Box } from '@chakra-ui/react';
+import { ChakraProvider, Box } from '@chakra-ui/react';
 
 import ForceGraph3D from '3d-force-graph';
 
@@ -33,8 +31,8 @@ function Graph3D() {
 
 export default function App() {
   return (
-    <main>
+    <ChakraProvider>
       <Graph3D />
-    </main>
+    </ChakraProvider>
   )
 }
