@@ -27,6 +27,7 @@
     "3d-force-graph": "^1.73.0",
     "framer-motion": "^10.16.4",
     "react-icons": "^4.11.0",
-    "three": "^0.158.0"
+    "three": "^0.158.0",
+    "three-spritetext": "^1.8.1"
   }
 }
