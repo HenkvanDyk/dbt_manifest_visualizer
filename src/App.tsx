@@ -45,7 +45,6 @@ function Graph3D() {
 export default function App() {
   return (
     <ChakraProvider>
-      
       <Graph3D />
     </ChakraProvider>
   )
