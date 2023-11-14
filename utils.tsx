@@ -51,3 +51,9 @@ export function getManifestNodeDetails(id: string, manifesst_json: any): string 
   `;
   return details;
 }
+
+export function prettifyFilename(filename: string): string {
+  let new_filename = filename.split(".").slice(0, -1).join("");
+  new_filename = new_filename.split("_").join(" ");
+  return new_filename;
+}
