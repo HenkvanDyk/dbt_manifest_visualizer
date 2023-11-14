@@ -8,6 +8,9 @@ import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody,
 import ForceGraph3D from '3d-force-graph';
 import * as utils from '/utils';
 
+// import * as THREE from 'three';
+// import { UnrealBloomPass } from 'https://unpkg.com/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+
 function Graph3D() {
   const example_manifest_files = [
     // "hokkien_pr14_base_main.json",
@@ -108,6 +111,13 @@ function Graph3D() {
       //   return new CSS2DObject(nodeEl);
       // })
       // .nodeThreeObjectExtend(true)
+
+      // const bloomPass = new UnrealBloomPass();
+      // console.log('asdfadsf');
+      // bloomPass.strength = 3;
+      // bloomPass.radius = 1;
+      // bloomPass.threshold = 0;
+      // Graph.postProcessingComposer().addPass(bloomPass);
 
       // fit to canvas when engine stops - only for the initial load
       let doneFirstLayout = false;
