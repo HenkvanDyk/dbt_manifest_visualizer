@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
+import { useDisclosure } from '@chakra-ui/react'
 import { ChakraProvider, Box, Button, Center, Spinner, VStack } from '@chakra-ui/react';
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider} from '@chakra-ui/react';
 import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg } from 'react-icons/bs'
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
 import ForceGraph3D from '3d-force-graph';
 import * as utils from '/utils';
@@ -24,6 +26,7 @@ function Graph3D() {
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const messageAlertModalDisclosure = useDisclosure();
 
   // Manifest File -> Manifest Data
   useEffect(() => {
@@ -112,6 +115,14 @@ function Graph3D() {
 
   return (
     <>
+      <MessageAlertModal
+        isOpen={messageAlertModalDisclosure.isOpen}
+        onOpen={messageAlertModalDisclosure.onOpen}
+        onClose={messageAlertModalDisclosure.onClose}
+        title={"Manifest Diffs is a WIP"}
+        message={"Custom Manifest Diffs is currently a work-in-progress and not yet available. 🙇"}
+      />
+      
       <Menu m={4}>
         <MenuButton as={Button} rightIcon={<BsChevronDown />}>
           Manifest: {utils.prettifyFilename(selected_manifest)}
@@ -128,12 +139,14 @@ function Graph3D() {
                 Demo: {utils.prettifyFilename(filename)}
               </MenuItem>
             ))}
-            <MenuItem icon={<BsPlusLg />}>Paste my own dbt manifest.json</MenuItem>
+            <MenuItem icon={<BsPlusLg />}>Paste a dbt manifest.json</MenuItem>
           </MenuGroup>
           <MenuDivider />
           <MenuGroup title='Manifest Diffs'>
             <MenuItem>…</MenuItem>
-            <MenuItem icon={<BsPlusLg />}>Paste 2 dbt manifest.json files</MenuItem>
+            <MenuItem icon={<BsPlusLg />} onClick={messageAlertModalDisclosure.onOpen}>
+              Paste 2 dbt manifest.json files
+            </MenuItem>
           </MenuGroup>
         </MenuList>
       </Menu>
@@ -151,12 +164,40 @@ function Graph3D() {
             </Box>
             <Button onClick={() => {setShowInfo(false)}} w="100%">Close</Button>
           </VStack>
-          
         </Box>
       )}
       <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} />
     </>
   );
+}
+
+function MessageAlertModal({
+  isOpen, onOpen, onClose,
+  title, message
+}) : {
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  title: string;
+  message: string;
+} {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>{title}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          {message}
+        </ModalBody>
+        <ModalFooter>
+          <Button colorScheme='blue' mr={3} onClick={onClose} w='100%'>
+            Ok
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  )
 }
 
 export default function App() {
