@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDisclosure } from '@chakra-ui/react'
-import { ChakraProvider, Box, Button, Center, Spinner, VStack } from '@chakra-ui/react';
+import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Text, Textarea } from '@chakra-ui/react';
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider} from '@chakra-ui/react';
 import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
@@ -18,6 +18,7 @@ function Graph3D() {
   ]
   // ToDo: Add 'Diff' Manifest files.
 
+  const [showing_user_manifest, setShowingUserManifest] = useState<boolean>(false);
   const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]);
   const [manifest_data, setManifestData] = useState<any>(null);
 
@@ -26,7 +27,9 @@ function Graph3D() {
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  
   const messageAlertModalDisclosure = useDisclosure();
+  const pasteManifestModalDisclosure = useDisclosure();
 
   // Manifest File -> Manifest Data
   useEffect(() => {
@@ -38,16 +41,19 @@ function Graph3D() {
       });
   }, [selected_manifest]);
 
+  // User Submitted Manifest Data
+  function onSubmittedManifestData(user_manifest_data: any) {
+    setLoadingGraph(true);
+    setShowingUserManifest(true);
+    setManifestData(user_manifest_data);
+  }
+
   // Manifest Data -> Graph Data
   useEffect(() => {
     if (!manifest_data) return;
     let graphData = utils.convertManifestToGraph(manifest_data);
     setGraphData(graphData);
   }, [manifest_data]);
-
-  useEffect(() => {
-    console.log('show_info', show_info);
-  }, [setShowInfo]);
   
   // Graph Data -> ForceGraph3D
   useEffect(() => {
@@ -115,43 +121,44 @@ function Graph3D() {
 
   return (
     <>
-      <MessageAlertModal
-        isOpen={messageAlertModalDisclosure.isOpen}
-        onOpen={messageAlertModalDisclosure.onOpen}
-        onClose={messageAlertModalDisclosure.onClose}
-        title={"Manifest Diffs is a WIP"}
-        message={"Custom Manifest Diffs is currently a work-in-progress and not yet available. 🙇"}
-      />
-      
-      <Menu m={4}>
-        <MenuButton as={Button} rightIcon={<BsChevronDown />}>
-          Manifest: {utils.prettifyFilename(selected_manifest)}
-        </MenuButton>
-        <MenuList>
-          <MenuGroup title='Manifest Snapshots'>
-            {example_manifest_files.map((filename: string) => (
-              <MenuItem key={filename} 
-                icon={(selected_manifest == filename) ? <BsFillFileEarmarkCodeFill /> : <BsFileEarmarkCode />}
-                onClick={() => {
-                  setSelectedManifest(filename);
-                }}
+      <HStack m={2}>
+        <Menu>
+          <MenuButton as={Button} rightIcon={<BsChevronDown />}>
+            Manifest: {showing_user_manifest ? "Custom" : utils.prettifyFilename(selected_manifest)}
+          </MenuButton>
+          <MenuList>
+            <MenuGroup title='Manifest Snapshots'>
+              {example_manifest_files.map((filename: string) => (
+                <MenuItem key={filename} 
+                  icon={(selected_manifest == filename && !showing_user_manifest) ? <BsFillFileEarmarkCodeFill /> : <BsFileEarmarkCode />}
+                  onClick={() => {
+                    setShowingUserManifest(false);
+                    setSelectedManifest(filename);
+                  }}
+                >
+                  Demo: {utils.prettifyFilename(filename)}
+                </MenuItem>
+              ))}
+              <MenuItem icon={<BsPlusLg />} 
+                onClick={pasteManifestModalDisclosure.onOpen}
               >
-                Demo: {utils.prettifyFilename(filename)}
+                Paste a dbt manifest.json
               </MenuItem>
-            ))}
-            <MenuItem icon={<BsPlusLg />}>Paste a dbt manifest.json</MenuItem>
-          </MenuGroup>
-          <MenuDivider />
-          <MenuGroup title='Manifest Diffs'>
-            <MenuItem>…</MenuItem>
-            <MenuItem icon={<BsPlusLg />} onClick={messageAlertModalDisclosure.onOpen}>
-              Paste 2 dbt manifest.json files
-            </MenuItem>
-          </MenuGroup>
-        </MenuList>
-      </Menu>
+            </MenuGroup>
+            <MenuDivider />
+            <MenuGroup title='Manifest Diffs'>
+              <MenuItem>…</MenuItem>
+              <MenuItem icon={<BsPlusLg />} 
+                onClick={messageAlertModalDisclosure.onOpen}>
+                Paste 2 dbt manifest.json files
+              </MenuItem>
+            </MenuGroup>
+          </MenuList>
+        </Menu>
+        <Button onClick={pasteManifestModalDisclosure.onOpen}>Paste a Manifest File</Button>
+      </HStack>
       {loading_graph && (
-        <Center w="100%" h="100vh" position="fixed" top="0">
+        <Center w="100%" h="100vh" position="fixed" top="0" pointerEvents="none">
           <Spinner thickness='4px' emptyColor='gray.200' color='orange.500'
             size='xl' zIndex={-1} />
         </Center>
@@ -167,8 +174,79 @@ function Graph3D() {
         </Box>
       )}
       <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} />
+
+      <MessageAlertModal
+        isOpen={messageAlertModalDisclosure.isOpen}
+        onOpen={messageAlertModalDisclosure.onOpen}
+        onClose={messageAlertModalDisclosure.onClose}
+        title={"Manifest Diffs is a WIP"}
+        message={"Custom Manifest Diffs is currently a work-in-progress and not yet available. 🙇"}
+      />
+      <PasteManifestModal
+        isOpen={pasteManifestModalDisclosure.isOpen}
+        onOpen={pasteManifestModalDisclosure.onOpen}
+        onClose={pasteManifestModalDisclosure.onClose}
+        onSubmittedManifestData={onSubmittedManifestData}
+      />
     </>
   );
+}
+
+function PasteManifestModal({
+  isOpen, onOpen, onClose, onSubmittedManifestData
+}) : {
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onSubmittedManifestData?: (manifest_json: any) => void;
+} {
+  let [value, setValue] = useState('');
+
+  let handleInputChange = (e) => {
+    let inputValue = e.target.value
+    setValue(inputValue);
+  }
+
+  function onSubmit() {
+    // console.log('value:', value);
+    try {
+      const obj = JSON.parse(value);
+      console.log('PasteManifestModal: obj:', obj);
+      if (onSubmittedManifestData) onSubmittedManifestData(obj);
+      onClose();
+    } catch(err) {
+      alert('JSON is invalid');
+      console.error(err);
+    }
+  }
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Paste a dbt Manifest</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <Text fontSize='sm'>Copy and Paste a dbt Manifest file. The default location of the manifest file is: <kbd>dbt-project/target/manifest.json</kbd>.</Text>
+          <Textarea my={2}
+            onChange={handleInputChange}
+            placeholder='Paste manifest.json content in here'
+            size='md'
+          />
+        </ModalBody>
+        <ModalFooter>
+          <HStack>
+            <Button mr={3} onClick={onClose} w='100%'>
+              Cancel
+            </Button>
+            <Button colorScheme='blue' mr={3} onClick={onSubmit} w='100%'>
+              See DAG
+            </Button>
+          </HStack>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  )
 }
 
 function MessageAlertModal({
@@ -188,7 +266,7 @@ function MessageAlertModal({
         <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          {message}
+          <Text>{message}</Text>
         </ModalBody>
         <ModalFooter>
           <Button colorScheme='blue' mr={3} onClick={onClose} w='100%'>
