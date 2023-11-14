@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { ChakraProvider, Box, Button, Center, Spinner } from '@chakra-ui/react';
+import { ChakraProvider, Box, Button, Center, Spinner, VStack } from '@chakra-ui/react';
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider} from '@chakra-ui/react';
 import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg } from 'react-icons/bs'
 
@@ -20,6 +20,7 @@ function Graph3D() {
   const [manifest_data, setManifestData] = useState<any>(null);
 
   const [show_info, setShowInfo] = useState<boolean>(false);
+  const [info_details, setInfoDetails] = useState<string | null>(null);
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -54,6 +55,7 @@ function Graph3D() {
 
     const nodeClickHandler = (node) => {
       console.log("Hello!");
+      setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_data));
       setShowInfo(true);
     }
     
@@ -143,8 +145,13 @@ function Graph3D() {
       )}
       {show_info && (
         <Box className="_info" h="100vh" position="fixed" top="0" right="0" w="240px" bg="white">
-          Hello
-          <Button onClick={setShowInfo(false)}>Close</Button>
+          <VStack textAlign="left" p={4}>
+            <Box>
+              {info_details || <Spinner />}
+            </Box>
+            <Button onClick={() => {setShowInfo(false)}} w="100%">Close</Button>
+          </VStack>
+          
         </Box>
       )}
       <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} />

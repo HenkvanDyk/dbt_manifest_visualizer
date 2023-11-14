@@ -29,12 +29,12 @@ export function convertManifestToGraph(manifest_json: any): any {
   return graph;
 }
 
-export function getManifestNodeDetails(id: string, manifesst_json: any): string { // and ManifestSourceDetails
+export function getManifestNodeDetails(id: string, manifesst_data: any): string { // and ManifestSourceDetails
   let manifest_elements = null;
   if (id.startsWith("source")) {
-    manifest_elements = manifesst_json.sources;
+    manifest_elements = manifesst_data.sources;
   } else {
-    manifest_elements = manifesst_json.nodes;
+    manifest_elements = manifesst_data.nodes;
   }
   
   let node: any = manifest_elements![id];
