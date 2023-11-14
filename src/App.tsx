@@ -8,8 +8,9 @@ import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody,
 import ForceGraph3D from '3d-force-graph';
 import * as utils from '/utils';
 
-// import * as THREE from 'three';
+import * as THREE from 'three';
 // import { UnrealBloomPass } from 'https://unpkg.com/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 
 function Graph3D() {
   const example_manifest_files = [
@@ -19,12 +20,17 @@ function Graph3D() {
     "mattermost_pr1339_target_28c6f456.json",
     "tuva.json"
   ]
+  const bloomPass = new UnrealBloomPass();
+  bloomPass.strength = 3;
+  bloomPass.radius = 1;
+  bloomPass.threshold = 0;
+  
   // ToDo: Add 'Diff' Manifest files.
 
   const [showing_user_manifest, setShowingUserManifest] = useState<boolean>(false);
   const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]);
   const [manifest_data, setManifestData] = useState<any>(null);
-
+  const [bloom_pass_on, setBloomPassOn] = useState<boolean>(true);
   const [show_info, setShowInfo] = useState<boolean>(false);
   const [info_details, setInfoDetails] = useState<string | null>(null);
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
@@ -111,13 +117,8 @@ function Graph3D() {
       //   return new CSS2DObject(nodeEl);
       // })
       // .nodeThreeObjectExtend(true)
-
-      // const bloomPass = new UnrealBloomPass();
-      // console.log('asdfadsf');
-      // bloomPass.strength = 3;
-      // bloomPass.radius = 1;
-      // bloomPass.threshold = 0;
-      // Graph.postProcessingComposer().addPass(bloomPass);
+      
+      Graph.postProcessingComposer().addPass(bloomPass);
 
       // fit to canvas when engine stops - only for the initial load
       let doneFirstLayout = false;
@@ -131,6 +132,7 @@ function Graph3D() {
 
   return (
     <>
+      {/* TOP BAR */}
       <HStack m={2}>
         <Menu>
           <MenuButton as={Button} rightIcon={<BsChevronDown />}>
@@ -167,12 +169,16 @@ function Graph3D() {
         </Menu>
         <Button onClick={pasteManifestModalDisclosure.onOpen}>Paste a Manifest File</Button>
       </HStack>
+
+      {/* LOADING SPINNER */}
       {loading_graph && (
         <Center w="100%" h="100vh" position="fixed" top="0" pointerEvents="none">
           <Spinner thickness='4px' emptyColor='gray.200' color='orange.500'
             size='xl' zIndex={-1} />
         </Center>
       )}
+
+      {/* INFO PANEL */}
       {show_info && (
         <Box className="_info" h="100vh" position="fixed" top="0" right="0" w="240px" bg="white">
           <VStack textAlign="left" p={4}>
@@ -183,8 +189,11 @@ function Graph3D() {
           </VStack>
         </Box>
       )}
+
+      {/* GRAPH */}
       <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} />
 
+      {/* MODALS */}
       <MessageAlertModal
         isOpen={messageAlertModalDisclosure.isOpen}
         onOpen={messageAlertModalDisclosure.onOpen}
