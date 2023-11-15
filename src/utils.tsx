@@ -25,7 +25,62 @@ export function convertManifestToGraph(manifest_json: any): any {
   });
 
   let graph = {nodes: nodes, links: links};
-  console.log(graph);
+  // console.log(graph);
+  return graph;
+}
+
+function compareArrays(arr1, arr2) {
+    const shared = arr1.filter(value => arr2.includes(value));
+    const uniqueToArr1 = arr1.filter(value => !arr2.includes(value));
+    const uniqueToArr2 = arr2.filter(value => !arr1.includes(value));
+    return {shared, uniqueToArr1, uniqueToArr2};
+}
+
+export function convertManifestsToDiffGraph(base_manifest: any, target_manifest: any) {
+  /*
+  TODO:
+    - Find an Example Data dataset that has changes in raw_code (e.g. a MatterMost PR).
+      - Color Changed raw_code as orange.
+      - Color Downstream Nodes of any changes (e.g. blue).
+  */
+  let nodes = [];
+  let base_node_ids = [];
+  let targ_node_ids = [];
+  let links = [];
+
+  // NODES (.sources + .nodes)
+  // Determine Shared, and Unique to Base/Target (Deleted/Added)
+  Object.keys(base_manifest.nodes).forEach(function(key, index) {base_node_ids.push(key)});
+  Object.keys(base_manifest.sources).forEach(function(key, index) {base_node_ids.push(key)});
+  Object.keys(target_manifest.nodes).forEach(function(key, index) {targ_node_ids.push(key)});
+  Object.keys(target_manifest.sources).forEach(function(key, index) {targ_node_ids.push(key)});
+  let comparison = compareArrays(base_node_ids, targ_node_ids);
+  console.log('diff compare: ', comparison);
+  nodes = [
+    ...comparison.shared.map(id => ({id: id, color: 'white', label: id})),
+    ...comparison.uniqueToArr1.map(id => ({id: id, color: 'red', label: id})),
+    ...comparison.uniqueToArr2.map(id => ({id: id, color: 'green', label: id}))
+  ];
+
+  // Links = Just Target Links for now. (Future: Manage Base Links, and Deleted/Added Links too)
+  Object.keys(target_manifest.nodes).forEach(function(key, index) {
+    let node = target_manifest.nodes[key];
+    // Generate Graph Edges
+    node.depends_on?.nodes?.forEach(function(depend_on_node, index) {
+      links.push({source: depend_on_node, target: key});
+    });
+  });
+  // ~ Base Links as well: // Future Todo: Make this only  add an Edge if it doesn't already exist.
+  Object.keys(base_manifest.nodes).forEach(function(key, index) {
+    let node = base_manifest.nodes[key];
+    // Generate Graph Edges
+    node.depends_on?.nodes?.forEach(function(depend_on_node, index) {
+      links.push({source: depend_on_node, target: key});
+    });
+  });
+
+  let graph = {nodes: nodes, links: links};
+  console.log("diff graph:", graph);
   return graph;
 }
 

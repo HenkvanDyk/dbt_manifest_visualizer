@@ -4,6 +4,7 @@ import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Te
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider } from '@chakra-ui/react';
 import {Alert, AlertIcon, AlertTitle, AlertDescription} from '@chakra-ui/react'
 import { Radio, RadioGroup } from '@chakra-ui/react'
+import { useToast } from '@chakra-ui/react'
 import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
@@ -22,28 +23,31 @@ import SpriteText from 'three-spritetext';
     - Custom Expand/Collapsing of Nodes
 
     Optimize Code:
-    - It seems that things slow down if WebGL graphs are generated too many times (their data sources or visual properties are changed). This implies that the WebGL graphs might not be getting cleared.
+    - It seems that things slow down if WebGL graphs are altered too many times (their data sources or visual properties are changed). This implies that the WebGL graphs might not be getting cleared from RAM.
 */
 
 function Graph3D() {
   const example_manifest_files = [
-    // "hokkien_pr14_base_main.json",
     "hokkien_pr14_target.json",
+    "tuva.json",
     // "mattermost_pr1339_base_77bab5dc.json",
     "mattermost_pr1339_target_28c6f456.json",
-    "tuva.json"
+    // "hokkien_pr14_base_main.json",
+    
   ]
   const example_manifest_diffs = [
     {"base": "hokkien_pr14_base_main.json", "target":"hokkien_pr14_target.json"},
-    {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_pr1339_target_28c6f456.json"}
+    {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_pr1339_target_28c6f456.json"}, // +8 nodes
+    // {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_base_30c827e0.json"}, // no diff
+    // {"base": "mattermost_pr1339_target_28c6f456.json", "target":"mattermost_base_30c827e0.json"}, //-8 nodes
   ]
-
-  // ToDo: Add 'Diff' Manifest files.
 
   const [display_type, setDisplayType] = useState<string>(["manifest_view", "manifest_diff", "user_manifest_view"][0]);
   const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]); // selected_manifest_view
-  const [selected_manifest_diff_id, setSelectedManifestDiffId] = useState<integer>(0);
+  const [selected_manifest_diff_id, setSelectedManifestDiffId] = useState<number>(-1);
   const [manifest_data, setManifestData] = useState<any>(null);
+  const [manifest_diff_base_data, setManifestDiffBaseData] = useState<any>(null);
+  const [manifest_diff_target_data, setManifestDiffTargetData] = useState<any>(null);
   const [viz_bloom_on, setVizBloomOn] = useState<boolean>(true);
   const [viz_3d, setViz3d] = useState<boolean>(true);
   const [viz_text, setVizText] = useState<boolean>(false);
@@ -53,20 +57,42 @@ function Graph3D() {
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [times_graph_has_run, setTimesGraphHasRun] = useState<number>(0);
 
   const messageAlertModalDisclosure = useDisclosure();
   const pasteManifestModalDisclosure = useDisclosure();
   const visualizationSettingsModalDisclosure = useDisclosure();
+  const toast = useToast();
 
   // Manifest File -> Manifest Data
   useEffect(() => {
     setLoadingGraph(true);
     fetch(`/data/example_manifests/${selected_manifest}`)
       .then((response) => response.json())
-      .then((data) => {
-        setManifestData(data);
+      .then((manifest_data) => {
+        setManifestData(manifest_data);
       });
   }, [selected_manifest]);
+  
+  useEffect(() => {
+    if (selected_manifest_diff_id == -1) return;
+
+    let pair = example_manifest_diffs[selected_manifest_diff_id];
+    
+    setLoadingGraph(true);
+    fetch(`/data/example_manifests/${pair.base}`)
+      .then((response) => response.json())
+      .then((base_data) => {
+        setManifestDiffBaseData(base_data);
+
+        fetch(`/data/example_manifests/${pair.target}`)
+          .then((response) => response.json())
+          .then((target_data) => {
+            setManifestDiffTargetData(target_data);
+          });
+      });
+  }, [selected_manifest_diff_id]);
+  
 
   // User Submitted Manifest Data
   function onSubmittedManifestData(user_manifest_data: any) {
@@ -77,10 +103,18 @@ function Graph3D() {
 
   // Manifest Data -> Graph Data
   useEffect(() => {
-    if (!manifest_data) return;
-    let graphData = utils.convertManifestToGraph(manifest_data);
-    setGraphData(graphData);
-  }, [manifest_data, viz_3d, viz_layout]);
+    if (display_type == "manifest_view" || display_type == "user_manifest_view") { // triggered by manifest_data ∂
+      if (!manifest_data) return;
+      let graphData = utils.convertManifestToGraph(manifest_data);
+      setGraphData(graphData);
+    }
+    if (display_type == "manifest_diff") { // triggered by manifest_diff_target_data ∂
+      if (!manifest_diff_base_data) return; //~
+      if (!manifest_diff_target_data) return;
+      let diffGraph = utils.convertManifestsToDiffGraph(manifest_diff_base_data, manifest_diff_target_data);
+      setGraphData(diffGraph);
+    }
+  }, [manifest_data, manifest_diff_target_data, viz_3d, viz_layout]);
 
   // Graph Data -> ForceGraph3D
   useEffect(() => {
@@ -89,8 +123,25 @@ function Graph3D() {
 
     setLoadingGraph(false);
 
+    if (times_graph_has_run > 5) {
+      toast({
+        title: 'Running slow? Refresh the page',
+        description: "The code isn't optimized for switching graphs yet 😅. Refresh to clear the memory.",
+        position: 'top-center',
+        status: 'warning',
+        duration: 8000,
+        isClosable: true,
+      });
+    }
+    setTimesGraphHasRun(times_graph_has_run+1);
+    
+
     const nodeClickHandler = (node: any) => {
-      setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_data));
+      if (display_type == "manifest_diff") {
+        setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_diff_target_data));
+      } else {
+        setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_data));
+      }
       setShowInfo(true);
     }
 
@@ -173,7 +224,7 @@ function Graph3D() {
       {/* TOP BAR */}
       <HStack m={2}>
         <Menu>
-          <MenuButton as={Button} rightIcon={<BsChevronDown />}>
+          <MenuButton as={Button} rightIcon={<BsChevronDown />} colorScheme="yellow">
             {display_type == "user_manifest_view" && (
               "Manifest: Custom"
             )}
@@ -215,6 +266,13 @@ function Graph3D() {
                   onClick={() => {
                     setDisplayType("manifest_diff");
                     setSelectedManifestDiffId(index);
+                    toast({
+                      title: 'Calculating PR Diff',
+                      description: "Please wait a few seconds ...",
+                      status: 'info',
+                      duration: 5000,
+                      isClosable: true,
+                    })
                   }}
                 >
                   {entry.base} ↔<br/>
@@ -228,21 +286,32 @@ function Graph3D() {
             </MenuGroup>
           </MenuList>
         </Menu>
-        <Button onClick={pasteManifestModalDisclosure.onOpen}>Paste a Manifest File</Button>
+        <Button onClick={pasteManifestModalDisclosure.onOpen} 
+          // border="2px solid #AAA"
+          colorScheme="twitter"
+          variant="outline"
+          bgColor="rgba(0,0,0,0.8)"
+          // colorScheme="black" color="white" variant="outline"
+        >
+          Paste a Manifest File
+        </Button>
       </HStack>
 
       {/* BOTTOM BAR */}
       <HStack m={2} mb={6} position="fixed" bottom={0}>
-        <Button onClick={visualizationSettingsModalDisclosure.onOpen}>
+        <Button onClick={visualizationSettingsModalDisclosure.onOpen}
+          colorScheme="blue"
+          variant="ghost"
+        >
           <HStack spacing={1}>
             <Icon as={BsEyeFill} />
-            <Tag variant='outline' colorScheme='blue'>{viz_3d ? "3D" : "2D"}</Tag>
-            <Tag variant='outline' colorScheme='blue'>{viz_layout} Layout</Tag>
-            <Tag variant='outline' colorScheme='blue'>Showing All</Tag>
-            <Tag variant='outline' colorScheme='blue'>Colored by Folder</Tag>
-            <Tag variant='outline' colorScheme='blue'>Labels {viz_text ? "On" : "Off"}</Tag>
+            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">{viz_3d ? "3D" : "2D"}</Tag>
+            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">{viz_layout} Layout</Tag>
+            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Showing All</Tag>
+            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Colored by Folder</Tag>
+            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Labels {viz_text ? "On" : "Off"}</Tag>
             {viz_bloom_on && (
-              <Tag variant='outline' colorScheme='blue'>Bloom On</Tag>
+              <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Bloom On</Tag>
             )}
           </HStack>
         </Button>
