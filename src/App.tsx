@@ -21,6 +21,7 @@ import SpriteText from 'three-spritetext';
     - Custom Layouts (More traditional DAG layouts)
     - Custom Rendering (Distance-based Labeling)
     - Custom Expand/Collapsing of Nodes
+    - Node Highlighting (Though this could probably be done without customizing)
 
     Optimize Code:
     - It seems that things slow down if WebGL graphs are altered too many times (their data sources or visual properties are changed). This implies that the WebGL graphs might not be getting cleared from RAM.
@@ -220,7 +221,7 @@ function Graph3D() {
   }, [containerRef.current, graph_data, viz_bloom_on, viz_text]);
 
   return (
-    <>
+    <Box>
       {/* TOP BAR */}
       <HStack m={2}>
         <Menu>
@@ -327,18 +328,20 @@ function Graph3D() {
 
       {/* INFO PANEL */}
       {show_info && (
-        <Box className="_info" h="100vh" position="fixed" top="0" right="0" w="240px" bg="white">
-          <VStack textAlign="left" p={4}>
-            <Box>
-              {info_details || <Spinner />}
-            </Box>
-            <Button onClick={() => { setShowInfo(false) }} w="100%">Close</Button>
-          </VStack>
+        <Box className="_info_wrapper" h="100vh" position="fixed" top="0" right="0" w="25%" minW="320px" maxW="480px" p={4}>
+          <Box className="_info" bg="white" h="100%" borderRadius={8}>
+            <VStack textAlign="left" p={4}>
+              <Box>
+                {info_details || <Spinner />}
+              </Box>
+              <Button onClick={() => { setShowInfo(false) }} w="100%">Close</Button>
+            </VStack>
+          </Box>
         </Box>
       )}
 
       {/* GRAPH */}
-      <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} />
+      <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} bgColor="#333" />
 
       {/* MODALS */}
       <MessageAlertModal
@@ -368,7 +371,7 @@ function Graph3D() {
         setVizText={setVizText}
       />
 
-    </>
+    </Box>
   );
 }
 
