@@ -4,7 +4,7 @@ import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Te
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider } from '@chakra-ui/react';
 import {Alert, AlertIcon, AlertTitle, AlertDescription} from '@chakra-ui/react'
 import { Radio, RadioGroup } from '@chakra-ui/react'
-import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill } from 'react-icons/bs'
+import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
 import ForceGraph3D from '3d-force-graph';
@@ -14,6 +14,17 @@ import * as THREE from 'three';
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import SpriteText from 'three-spritetext';
 
+/* TODO: 
+    Fork '3d-force-graph' and write custom WebGL/ThreeJS code for:
+    - Custom Camera Control (2D, Node-based Camera Navigation, etc.)
+    - Custom Layouts (More traditional DAG layouts)
+    - Custom Rendering (Distance-based Labeling)
+    - Custom Expand/Collapsing of Nodes
+
+    Optimize Code:
+    - It seems that things slow down if WebGL graphs are generated too many times (their data sources or visual properties are changed). This implies that the WebGL graphs might not be getting cleared.
+*/
+
 function Graph3D() {
   const example_manifest_files = [
     // "hokkien_pr14_base_main.json",
@@ -22,11 +33,16 @@ function Graph3D() {
     "mattermost_pr1339_target_28c6f456.json",
     "tuva.json"
   ]
+  const example_manifest_diffs = [
+    {"base": "hokkien_pr14_base_main.json", "target":"hokkien_pr14_target.json"},
+    {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_pr1339_target_28c6f456.json"}
+  ]
 
   // ToDo: Add 'Diff' Manifest files.
 
-  const [showing_user_manifest, setShowingUserManifest] = useState<boolean>(false);
-  const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]);
+  const [display_type, setDisplayType] = useState<string>(["manifest_view", "manifest_diff", "user_manifest_view"][0]);
+  const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]); // selected_manifest_view
+  const [selected_manifest_diff_id, setSelectedManifestDiffId] = useState<integer>(0);
   const [manifest_data, setManifestData] = useState<any>(null);
   const [viz_bloom_on, setVizBloomOn] = useState<boolean>(true);
   const [viz_3d, setViz3d] = useState<boolean>(true);
@@ -55,7 +71,7 @@ function Graph3D() {
   // User Submitted Manifest Data
   function onSubmittedManifestData(user_manifest_data: any) {
     setLoadingGraph(true);
-    setShowingUserManifest(true);
+    setDisplayType("user_manifest_view");
     setManifestData(user_manifest_data);
   }
 
@@ -158,15 +174,24 @@ function Graph3D() {
       <HStack m={2}>
         <Menu>
           <MenuButton as={Button} rightIcon={<BsChevronDown />}>
-            Manifest: {showing_user_manifest ? "Custom" : utils.prettifyFilename(selected_manifest)}
+            {display_type == "user_manifest_view" && (
+              "Manifest: Custom"
+            )}
+            {display_type == "manifest_view" && (
+              `Manifest: ${utils.prettifyFilename(selected_manifest)}`
+            )}
+            {display_type == "manifest_diff" && (
+              `Diff: ${utils.prettifyFilename(example_manifest_diffs[selected_manifest_diff_id].base)} ↔
+              ${utils.prettifyFilename(example_manifest_diffs[selected_manifest_diff_id].target)}`
+            )}
           </MenuButton>
           <MenuList>
-            <MenuGroup title='Manifest Snapshots'>
+            <MenuGroup title='Manifest Views'>
               {example_manifest_files.map((filename: string) => (
                 <MenuItem key={filename}
-                  icon={(selected_manifest == filename && !showing_user_manifest) ? <BsFillFileEarmarkCodeFill /> : <BsFileEarmarkCode />}
+                  icon={(selected_manifest == filename && display_type == "manifest_view") ? <BsFillFileEarmarkCodeFill /> : <BsFileEarmarkCode />}
                   onClick={() => {
-                    setShowingUserManifest(false);
+                    setDisplayType("manifest_view");
                     setSelectedManifest(filename);
                   }}
                 >
@@ -181,7 +206,21 @@ function Graph3D() {
             </MenuGroup>
             <MenuDivider />
             <MenuGroup title='Manifest Diffs'>
-              <MenuItem>…</MenuItem>
+              {example_manifest_diffs.map((entry: any, index: number) => (
+                <MenuItem key={index} 
+                  icon={
+                    (selected_manifest_diff_id == index && display_type == "manifest_diff") ?  
+                    <BsFileEarmarkDiffFill /> : <BsFileEarmarkDiff />
+                  }
+                  onClick={() => {
+                    setDisplayType("manifest_diff");
+                    setSelectedManifestDiffId(index);
+                  }}
+                >
+                  {entry.base} ↔<br/>
+                  {entry.target}
+                </MenuItem>
+              ))}
               <MenuItem icon={<BsPlusLg />}
                 onClick={messageAlertModalDisclosure.onOpen}>
                 Paste 2 dbt manifest.json files
@@ -305,7 +344,7 @@ function VisualizationSettingsModal({
           <RadioGroup onChange={(value) => { setVizLayout(value) }} value={viz_layout}>
             <Stack direction='row'>
               <Radio value='force'>Force Graph</Radio>
-              <Radio value='tree-lr'>Tree (LR)</Radio>
+              <Radio value='tree-lr'>Tree DAG (LR)</Radio>
             </Stack>
           </RadioGroup>
           <Divider my={2} />
