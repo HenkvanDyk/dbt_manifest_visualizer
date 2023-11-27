@@ -84,7 +84,7 @@ export function convertManifestsToDiffGraph(base_manifest: any, target_manifest:
   return graph;
 }
 
-export function getManifestNodeDetails(id: string, manifesst_data: any): string { // and ManifestSourceDetails
+export function getManifestNodeDetails(id: string, manifesst_data: any): any { // and ManifestSourceDetails
   let manifest_elements = null;
   if (id.startsWith("source")) {
     manifest_elements = manifesst_data.sources;
@@ -93,18 +93,19 @@ export function getManifestNodeDetails(id: string, manifesst_data: any): string 
   }
   
   let node: any = manifest_elements![id];
-  if (!node) return 'n/a';
+  return node;
+  // if (!node) return 'n/a';
   
-  let details = `
-<div>${node.name}</div>
-<ul>
-  <li>type: ${node.resource_type}</li>
-  <li>path: ${node.original_file_path}</li>
-  <li>description: ${node.description || node.source_description}</li>
-  <li>...todo: more details...</li>
-</ul>
-  `;
-  return details;
+//   let details = `
+// <div>${node.name}</div>
+// <ul>
+//   <li>type: ${node.resource_type}</li>
+//   <li>path: ${node.original_file_path}</li>
+//   <li>description: ${node.description || node.source_description}</li>
+//   <li>...todo: more details...</li>
+// </ul>
+//   `;
+//   return details;
 }
 
 export function prettifyFilename(filename: string): string {

@@ -1,11 +1,11 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDisclosure } from '@chakra-ui/react'
-import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Text, Textarea, Checkbox, Divider, Tag, Icon } from '@chakra-ui/react';
+import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Text, Textarea, Checkbox, Divider, Tag, Icon, Heading, Code } from '@chakra-ui/react';
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider } from '@chakra-ui/react';
 import {Alert, AlertIcon, AlertTitle, AlertDescription} from '@chakra-ui/react'
 import { Radio, RadioGroup } from '@chakra-ui/react'
 import { useToast } from '@chakra-ui/react'
-import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill } from 'react-icons/bs'
+import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill, BsXLg } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
 import ForceGraph3D from '3d-force-graph';
@@ -30,31 +30,18 @@ import SpriteText from 'three-spritetext';
 function Graph3D() {
   const example_manifest_files = [
     "hokkien_pr14_target.json",
-    "tuva.json",
-    // "mattermost_pr1339_base_77bab5dc.json",
     "mattermost_pr1339_target_28c6f456.json",
-    // "hokkien_pr14_base_main.json",
-    
+    "tuva.json",
   ]
-  const example_manifest_diffs = [
-    {"base": "hokkien_pr14_base_main.json", "target":"hokkien_pr14_target.json"},
-    {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_pr1339_target_28c6f456.json"}, // +8 nodes
-    // {"base": "mattermost_pr1339_base_77bab5dc.json", "target":"mattermost_base_30c827e0.json"}, // no diff
-    // {"base": "mattermost_pr1339_target_28c6f456.json", "target":"mattermost_base_30c827e0.json"}, //-8 nodes
-  ]
-
-  const [display_type, setDisplayType] = useState<string>(["manifest_view", "manifest_diff", "user_manifest_view"][0]);
+  
   const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]); // selected_manifest_view
-  const [selected_manifest_diff_id, setSelectedManifestDiffId] = useState<number>(-1);
   const [manifest_data, setManifestData] = useState<any>(null);
-  const [manifest_diff_base_data, setManifestDiffBaseData] = useState<any>(null);
-  const [manifest_diff_target_data, setManifestDiffTargetData] = useState<any>(null);
   const [viz_bloom_on, setVizBloomOn] = useState<boolean>(true);
   const [viz_3d, setViz3d] = useState<boolean>(true);
   const [viz_text, setVizText] = useState<boolean>(false);
   const [viz_layout, setVizLayout] = useState<string>("force");
   const [show_info, setShowInfo] = useState<boolean>(false);
-  const [info_details, setInfoDetails] = useState<string | null>(null);
+  const [cur_node_details, setCurNodeDetails] = useState<any | null>(null);
   const [loading_graph, setLoadingGraph] = useState<boolean>(false);
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -75,47 +62,19 @@ function Graph3D() {
       });
   }, [selected_manifest]);
   
-  useEffect(() => {
-    if (selected_manifest_diff_id == -1) return;
-
-    let pair = example_manifest_diffs[selected_manifest_diff_id];
-    
-    setLoadingGraph(true);
-    fetch(`/data/example_manifests/${pair.base}`)
-      .then((response) => response.json())
-      .then((base_data) => {
-        setManifestDiffBaseData(base_data);
-
-        fetch(`/data/example_manifests/${pair.target}`)
-          .then((response) => response.json())
-          .then((target_data) => {
-            setManifestDiffTargetData(target_data);
-          });
-      });
-  }, [selected_manifest_diff_id]);
-  
 
   // User Submitted Manifest Data
   function onSubmittedManifestData(user_manifest_data: any) {
     setLoadingGraph(true);
-    setDisplayType("user_manifest_view");
     setManifestData(user_manifest_data);
   }
 
   // Manifest Data -> Graph Data
   useEffect(() => {
-    if (display_type == "manifest_view" || display_type == "user_manifest_view") { // triggered by manifest_data ∂
-      if (!manifest_data) return;
-      let graphData = utils.convertManifestToGraph(manifest_data);
-      setGraphData(graphData);
-    }
-    if (display_type == "manifest_diff") { // triggered by manifest_diff_target_data ∂
-      if (!manifest_diff_base_data) return; //~
-      if (!manifest_diff_target_data) return;
-      let diffGraph = utils.convertManifestsToDiffGraph(manifest_diff_base_data, manifest_diff_target_data);
-      setGraphData(diffGraph);
-    }
-  }, [manifest_data, manifest_diff_target_data, viz_3d, viz_layout]);
+    if (!manifest_data) return;
+    let graphData = utils.convertManifestToGraph(manifest_data);
+    setGraphData(graphData);
+  }, [manifest_data]);
 
   // Graph Data -> ForceGraph3D
   useEffect(() => {
@@ -128,7 +87,7 @@ function Graph3D() {
       toast({
         title: 'Running slow? Refresh the page',
         description: "The code isn't optimized for switching graphs yet 😅. Refresh to clear the memory.",
-        position: 'top-center',
+        position: 'top',
         status: 'warning',
         duration: 8000,
         isClosable: true,
@@ -138,11 +97,7 @@ function Graph3D() {
     
 
     const nodeClickHandler = (node: any) => {
-      if (display_type == "manifest_diff") {
-        setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_diff_target_data));
-      } else {
-        setInfoDetails(utils.getManifestNodeDetails(node.id, manifest_data));
-      }
+      setCurNodeDetails(utils.getManifestNodeDetails(node.id, manifest_data));
       setShowInfo(true);
     }
 
@@ -222,101 +177,6 @@ function Graph3D() {
 
   return (
     <Box>
-      {/* TOP BAR */}
-      <HStack m={2}>
-        <Menu>
-          <MenuButton as={Button} rightIcon={<BsChevronDown />} colorScheme="yellow">
-            {display_type == "user_manifest_view" && (
-              "Manifest: Custom"
-            )}
-            {display_type == "manifest_view" && (
-              `Manifest: ${utils.prettifyFilename(selected_manifest)}`
-            )}
-            {display_type == "manifest_diff" && (
-              `Diff: ${utils.prettifyFilename(example_manifest_diffs[selected_manifest_diff_id].base)} ↔
-              ${utils.prettifyFilename(example_manifest_diffs[selected_manifest_diff_id].target)}`
-            )}
-          </MenuButton>
-          <MenuList>
-            <MenuGroup title='Manifest Views'>
-              {example_manifest_files.map((filename: string) => (
-                <MenuItem key={filename}
-                  icon={(selected_manifest == filename && display_type == "manifest_view") ? <BsFillFileEarmarkCodeFill /> : <BsFileEarmarkCode />}
-                  onClick={() => {
-                    setDisplayType("manifest_view");
-                    setSelectedManifest(filename);
-                  }}
-                >
-                  Demo: {utils.prettifyFilename(filename)}
-                </MenuItem>
-              ))}
-              <MenuItem icon={<BsPlusLg />}
-                onClick={pasteManifestModalDisclosure.onOpen}
-              >
-                Paste a dbt manifest.json
-              </MenuItem>
-            </MenuGroup>
-            <MenuDivider />
-            <MenuGroup title='Manifest Diffs'>
-              {example_manifest_diffs.map((entry: any, index: number) => (
-                <MenuItem key={index} 
-                  icon={
-                    (selected_manifest_diff_id == index && display_type == "manifest_diff") ?  
-                    <BsFileEarmarkDiffFill /> : <BsFileEarmarkDiff />
-                  }
-                  onClick={() => {
-                    setDisplayType("manifest_diff");
-                    setSelectedManifestDiffId(index);
-                    toast({
-                      title: 'Calculating PR Diff',
-                      description: "Please wait a few seconds ...",
-                      status: 'info',
-                      duration: 5000,
-                      isClosable: true,
-                    })
-                  }}
-                >
-                  {entry.base} ↔<br/>
-                  {entry.target}
-                </MenuItem>
-              ))}
-              <MenuItem icon={<BsPlusLg />}
-                onClick={messageAlertModalDisclosure.onOpen}>
-                Paste 2 dbt manifest.json files
-              </MenuItem>
-            </MenuGroup>
-          </MenuList>
-        </Menu>
-        <Button onClick={pasteManifestModalDisclosure.onOpen} 
-          // border="2px solid #AAA"
-          colorScheme="twitter"
-          variant="outline"
-          bgColor="rgba(0,0,0,0.8)"
-          // colorScheme="black" color="white" variant="outline"
-        >
-          Paste a Manifest File
-        </Button>
-      </HStack>
-
-      {/* BOTTOM BAR */}
-      <HStack m={2} mb={6} position="fixed" bottom={0}>
-        <Button onClick={visualizationSettingsModalDisclosure.onOpen}
-          colorScheme="blue"
-          variant="ghost"
-        >
-          <HStack spacing={1}>
-            <Icon as={BsEyeFill} />
-            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">{viz_3d ? "3D" : "2D"}</Tag>
-            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">{viz_layout} Layout</Tag>
-            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Showing All</Tag>
-            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Colored by Folder</Tag>
-            <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Labels {viz_text ? "On" : "Off"}</Tag>
-            {viz_bloom_on && (
-              <Tag variant='outline' colorScheme='blue' bgColor="rgba(0,0,0,0.8)">Bloom On</Tag>
-            )}
-          </HStack>
-        </Button>
-      </HStack>
 
       {/* LOADING SPINNER */}
       {loading_graph && (
@@ -329,11 +189,71 @@ function Graph3D() {
       {/* INFO PANEL */}
       {show_info && (
         <Box className="_info_wrapper" h="100vh" position="fixed" top="0" right="0" w="25%" minW="320px" maxW="480px" p={4}>
-          <Box className="_info" bg="white" h="100%" borderRadius={8}>
-            <VStack textAlign="left" p={4}>
-              <Box>
-                {info_details || <Spinner />}
-              </Box>
+          <Box className="_info" bg="white" h="100%" borderRadius={8} overflow="auto">
+            <VStack p={4} alignItems="baseline">
+              {cur_node_details && (
+                <>
+                  <HStack w="100%" className="header">
+                    <VStack flex={1} alignItems="baseline" spacing={0}>
+                      <Text fontSize='xs' opacity={0.6}>
+                        {cur_node_details.original_file_path.split("/").slice(0, -1).join("/")}
+                      </Text>
+                      <Text fontSize='lg' fontWeight='bold' overflowWrap="anywhere">
+                        {cur_node_details.name}
+                      </Text>
+                      <Text fontSize='xs' opacity={0.6}>
+                        {cur_node_details.resource_type == "test" && ("🧪 ")}
+                        {cur_node_details.resource_type == "source" && ("📥 ")}
+                        {cur_node_details.resource_type}
+                      </Text>
+                    </VStack>
+                    <Button onClick={() => { setShowInfo(false) }} variant="ghost">
+                      <Icon as={BsXLg} />
+                    </Button>
+                  </HStack>
+
+                  <VStack spacing={0} alignItems="baseline" my={2}>
+                    <Text fontSize='sm' fontWeight="bold" textTransform="uppercase" opacity={0.6}>
+                      Description
+                    </Text>
+                    <Text>
+                      {cur_node_details.description || cur_node_details.source_description || "none"}
+                    </Text>
+                  </VStack>
+                  <Divider my={2} />
+
+                  {cur_node_details.columns && (
+                  <>
+                    <VStack spacing={0} alignItems="baseline" my={2} position="relative">
+                      <Text fontSize='sm' fontWeight="bold" textTransform="uppercase" opacity={0.6}>
+                        Columns
+                      </Text>
+                      {Object.keys(cur_node_details.columns).length == 0 && (<Text>none</Text>)}
+                      {Object.keys(cur_node_details.columns).map((key: string, index: number) => (
+                        <Text key={key}>{key}</Text>
+                      ))}
+                    </VStack>
+                    <Divider my={2} />
+                    </>
+                  )}
+                  
+
+                  <VStack spacing={0} alignItems="baseline" my={2} position="relative">
+                    <Text fontSize='sm' fontWeight="bold" textTransform="uppercase" opacity={0.6}>
+                      Code
+                    </Text>
+                    <Code maxHeight="240px" overflow="auto" borderRadius={4} maxWidth="100%">
+                      {cur_node_details.raw_code || "none"}
+                    </Code>
+                  </VStack>
+                  <Divider my={2} />
+                  
+                  
+                </>
+              )}
+              {!cur_node_details && (
+                <Spinner />
+              )}
               <Button onClick={() => { setShowInfo(false) }} w="100%">Close</Button>
             </VStack>
           </Box>
@@ -343,196 +263,8 @@ function Graph3D() {
       {/* GRAPH */}
       <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} bgColor="#333" />
 
-      {/* MODALS */}
-      <MessageAlertModal
-        isOpen={messageAlertModalDisclosure.isOpen}
-        onOpen={messageAlertModalDisclosure.onOpen}
-        onClose={messageAlertModalDisclosure.onClose}
-        title={"Manifest Diffs is a WIP"}
-        message={"Custom Manifest Diffs is currently a work-in-progress and not yet available. 🙇"}
-      />
-      <PasteManifestModal
-        isOpen={pasteManifestModalDisclosure.isOpen}
-        onOpen={pasteManifestModalDisclosure.onOpen}
-        onClose={pasteManifestModalDisclosure.onClose}
-        onSubmittedManifestData={onSubmittedManifestData}
-      />
-      <VisualizationSettingsModal
-        isOpen={visualizationSettingsModalDisclosure.isOpen}
-        onOpen={visualizationSettingsModalDisclosure.onOpen}
-        onClose={visualizationSettingsModalDisclosure.onClose}
-        viz_bloom_on={viz_bloom_on}
-        setVizBloomOn={setVizBloomOn}
-        viz_3d={viz_3d}
-        setViz3d={setViz3d}
-        viz_layout={viz_layout}
-        setVizLayout={setVizLayout}
-        viz_text={viz_text}
-        setVizText={setVizText}
-      />
-
     </Box>
   );
-}
-
-function VisualizationSettingsModal({
-  isOpen, onOpen, onClose,
-  viz_bloom_on, setVizBloomOn,
-  viz_3d, setViz3d,
-  viz_layout, setVizLayout,
-  viz_text, setVizText
-}): {
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  viz_bloom_on: boolean; setVizBloomOn: (on: boolean) => void;
-  viz_3d: boolean; setViz3d: (on: boolean) => void;
-  viz_layout: string; setVizLayout: (value: string) => void;
-  viz_text: boolean; setVizText: (on: boolean) => void;
-} {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Visualization Settings</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Bloom</Text>
-          <Checkbox isChecked={viz_bloom_on}
-            onChange={(e) => setVizBloomOn(e.target.checked)}
-          >
-            Bloom Effect (Disable for faster rendering)
-          </Checkbox>
-          <Divider my={2} />
-          <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Dimensions</Text>
-          <RadioGroup onChange={(value) => { setViz3d(value == '3d') }} value={viz_3d ? '3d' : '2d'}>
-            <Stack direction='row'>
-              <Radio value='3d'>3D</Radio>
-              <Radio value='2d'>2D</Radio>
-            </Stack>
-          </RadioGroup>
-          <Divider my={2} />
-          <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Layout</Text>
-          <RadioGroup onChange={(value) => { setVizLayout(value) }} value={viz_layout}>
-            <Stack direction='row'>
-              <Radio value='force'>Force Graph</Radio>
-              <Radio value='tree-lr'>Tree DAG (LR)</Radio>
-            </Stack>
-          </RadioGroup>
-          <Divider my={2} />
-          <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Colored by</Text>
-          <Text>Folder Hierarchy</Text>
-          <Divider my={2} />
-          <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Show Labels</Text>
-          <Checkbox isChecked={viz_text}
-            onChange={(e) => setVizText(e.target.checked)}
-          >
-            Show Labels
-          </Checkbox>
-          <Divider my={2} />
-          <Text>… Todo: More Settings, like different Layouts …</Text>
-          <Divider my={2} />
-          <Alert status='warning' fontSize='sm' borderRadius={8}>
-            <AlertIcon />
-            Note: This experiment doesn't currently clear its RAM with each new layout, so if things get slow, just refresh the page. :)
-          </Alert>
-        </ModalBody>
-        <ModalFooter>
-          <HStack>
-            <Button mr={3} onClick={onClose} w='100%'>
-              Close
-            </Button>
-          </HStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  )
-}
-
-function PasteManifestModal({
-  isOpen, onOpen, onClose, onSubmittedManifestData
-}): {
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  onSubmittedManifestData?: (manifest_json: any) => void;
-} {
-  let [value, setValue] = useState('');
-
-  let handleInputChange = (e) => {
-    let inputValue = e.target.value
-    setValue(inputValue);
-  }
-
-  function onSubmit() {
-    // console.log('value:', value);
-    try {
-      const obj = JSON.parse(value);
-      console.log('PasteManifestModal: obj:', obj);
-      if (onSubmittedManifestData) onSubmittedManifestData(obj);
-      onClose();
-    } catch (err) {
-      alert('JSON is invalid');
-      console.error(err);
-    }
-  }
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Paste a dbt Manifest</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <Text fontSize='sm'>Copy and Paste a dbt Manifest file. The default location of the manifest file is: <kbd>dbt-project/target/manifest.json</kbd>.</Text>
-          <Textarea my={2}
-            onChange={handleInputChange}
-            placeholder='Paste manifest.json content in here'
-            size='md'
-          />
-        </ModalBody>
-        <ModalFooter>
-          <HStack>
-            <Button mr={3} onClick={onClose} w='100%'>
-              Cancel
-            </Button>
-            <Button colorScheme='blue' mr={3} onClick={onSubmit} w='100%'>
-              See DAG
-            </Button>
-          </HStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  )
-}
-
-function MessageAlertModal({
-  isOpen, onOpen, onClose,
-  title, message
-}): {
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  title: string;
-  message: string;
-} {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{title}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <Text>{message}</Text>
-        </ModalBody>
-        <ModalFooter>
-          <Button colorScheme='blue' mr={3} onClick={onClose} w='100%'>
-            Ok
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  )
 }
 
 export default function App() {
