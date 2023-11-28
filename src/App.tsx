@@ -1,18 +1,17 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDisclosure } from '@chakra-ui/react'
-import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Text, Textarea, Checkbox, Divider, Tag, Icon, Heading, Code } from '@chakra-ui/react';
+import { ChakraProvider, Box, Button, Center, Spinner, VStack, HStack, Stack, Text, Textarea, Checkbox, Divider, Tag, Icon, Heading, Code, Link } from '@chakra-ui/react';
 import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOptionGroup, MenuDivider } from '@chakra-ui/react';
 import {Alert, AlertIcon, AlertTitle, AlertDescription} from '@chakra-ui/react'
 import { Radio, RadioGroup } from '@chakra-ui/react'
 import { useToast } from '@chakra-ui/react'
-import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill, BsXLg } from 'react-icons/bs'
+import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill, BsXLg, BsBoxArrowUpRight } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
 import ForceGraph3D from '3d-force-graph';
 import * as utils from './utils';
 
 import * as THREE from 'three';
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import SpriteText from 'three-spritetext';
 
 /* TODO: 
@@ -27,17 +26,25 @@ import SpriteText from 'three-spritetext';
     - It seems that things slow down if WebGL graphs are altered too many times (their data sources or visual properties are changed). This implies that the WebGL graphs might not be getting cleared from RAM.
 */
 
-function Graph3D() {
+function Graph3D({
+  viz_3d,
+  viz_size_by_centrality,
+  viz_overall_quality
+}:{
+  viz_3d: boolean;
+  viz_size_by_centrality: boolean;
+  viz_overall_quality: number;
+}) {
   const example_manifest_files = [
-    "hokkien_pr14_target.json",
+    "gitlab_manifest.min.json", // with tests this is ~ 9K nodes. Without tests, this is ~ 4K nodes.
     "mattermost_pr1339_target_28c6f456.json",
+    "hokkien_pr14_target.json",
     "tuva.json",
   ]
-  
+
+  const [loading_status_text, setLoadingStatusText] = useState<string | null>(null);
   const [selected_manifest, setSelectedManifest] = useState(example_manifest_files[0]); // selected_manifest_view
   const [manifest_data, setManifestData] = useState<any>(null);
-  const [viz_bloom_on, setVizBloomOn] = useState<boolean>(true);
-  const [viz_3d, setViz3d] = useState<boolean>(true);
   const [viz_text, setVizText] = useState<boolean>(false);
   const [viz_layout, setVizLayout] = useState<string>("force");
   const [show_info, setShowInfo] = useState<boolean>(false);
@@ -46,14 +53,12 @@ function Graph3D() {
   const [graph_data, setGraphData] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [times_graph_has_run, setTimesGraphHasRun] = useState<number>(0);
-
-  const messageAlertModalDisclosure = useDisclosure();
-  const pasteManifestModalDisclosure = useDisclosure();
-  const visualizationSettingsModalDisclosure = useDisclosure();
+  
   const toast = useToast();
 
   // Manifest File -> Manifest Data
   useEffect(() => {
+    setLoadingStatusText(`1. Downloading Manifest: ${selected_manifest} (48.1 MB)`);
     setLoadingGraph(true);
     fetch(`/data/example_manifests/${selected_manifest}`)
       .then((response) => response.json())
@@ -61,7 +66,6 @@ function Graph3D() {
         setManifestData(manifest_data);
       });
   }, [selected_manifest]);
-  
 
   // User Submitted Manifest Data
   function onSubmittedManifestData(user_manifest_data: any) {
@@ -72,6 +76,7 @@ function Graph3D() {
   // Manifest Data -> Graph Data
   useEffect(() => {
     if (!manifest_data) return;
+    setLoadingStatusText("2. Drawing Graph");
     let graphData = utils.convertManifestToGraph(manifest_data);
     setGraphData(graphData);
   }, [manifest_data]);
@@ -81,6 +86,7 @@ function Graph3D() {
     if (containerRef.current == null) return;
     if (graph_data == null) return;
 
+    setLoadingStatusText(null);
     setLoadingGraph(false);
 
     if (times_graph_has_run > 5) {
@@ -104,31 +110,57 @@ function Graph3D() {
     // Generate graph
     const Graph = ForceGraph3D()(containerRef.current)
       .graphData(graph_data)
-      .numDimensions(viz_3d ? 3 : 2)
-      .onNodeClick(nodeClickHandler)
+      
       // display
+      .numDimensions(viz_3d ? 3 : 2)
+      // .nodeResolution(6) // default = 8
       .backgroundColor('#000003')
       .nodeLabel('label')
       .nodeAutoColorBy('path')
       .nodeOpacity(1.0)
+
+      // ix
+      .onNodeClick(nodeClickHandler)
+      .enableNodeDrag(false)
+      
       // arrow head
       .linkDirectionalArrowLength(3.5)
       .linkDirectionalArrowRelPos(1)
-      .linkCurvature(0)
-      // directional particles
-      .linkDirectionalParticles(3) // ("value")
-      .linkDirectionalParticleSpeed(0.008) //(d => d.value * 0.001);
-      .linkDirectionalParticleWidth(1) // Nodes are ~width(10)
+      // .linkCurvature(0)
+    
       // layout
-      .forceEngine('d3') // default 'd3' / 'ngraph'
+      // .forceEngine('d3') // default 'd3' / 'ngraph'
       // .dagMode('lr') // <- For a more traditional DAG Left-to-Right layout.
-      .cooldownTicks(200)
+      // .cooldownTicks(200)
+    
+    if (viz_overall_quality == 0) { Graph.nodeResolution(0) }
+    if (viz_overall_quality == 1) { Graph.nodeResolution(4) }
+    if (viz_overall_quality == 2) { Graph.nodeResolution(6) }
+    if (viz_overall_quality == 3) { Graph.nodeResolution(8) }
 
-
+    // directional particles
+    if ([1,2].includes(viz_overall_quality)) {
+      Graph
+        .linkDirectionalParticles(1) // ("value")
+        .linkDirectionalParticleSpeed(0.008) //(d => d.value * 0.001);
+        .linkDirectionalParticleWidth(1) // Nodes are ~width(10)
+    }
+    if ([3].includes(viz_overall_quality)) {
+      Graph
+        .linkDirectionalParticles(2) // ("value")
+        .linkDirectionalParticleSpeed(0.008) //(d => d.value * 0.001);
+        .linkDirectionalParticleWidth(1) // Nodes are ~width(10)
+    }
+    
+    if (viz_size_by_centrality) {
+      Graph
+        .nodeRelSize(2) // default 4
+        .nodeVal((node:any) => Math.pow(node.centrality, 1.5))
+    }
     if (viz_text) {
       // Label via Sprite
         Graph
-          .nodeThreeObject(node => { // As Sprites
+          .nodeThreeObject((node:any) => { // As Sprites
             const sprite = new SpriteText(node.label);
             sprite.material.depthWrite = false; // make sprite background transparent
             sprite.color = node.color;
@@ -140,8 +172,6 @@ function Graph3D() {
           })
           .nodeRelSize(2) // default: 4
           .nodeThreeObjectExtend(true)
-      
-      
       //  Label via CSS2D
       // .nodeThreeObject(node => {
       //   const nodeEl = document.createElement('div');
@@ -157,14 +187,6 @@ function Graph3D() {
       Graph.dagMode('lr') // <- For a more traditional DAG Left-to-Right layout.
     }
 
-    if (viz_bloom_on) {
-      const bloomPass = new UnrealBloomPass();
-      bloomPass.strength = 3;
-      bloomPass.radius = 1;
-      bloomPass.threshold = 0;
-      Graph.postProcessingComposer().addPass(bloomPass);
-    }
-
     // FIT to canvas when engine stops - only for the initial load
     // let doneFirstLayout = false;
     // Graph.onEngineStop(() => {
@@ -173,7 +195,7 @@ function Graph3D() {
     //     Graph.zoomToFit(400)
     //   }
     // });
-  }, [containerRef.current, graph_data, viz_bloom_on, viz_text]);
+  }, [containerRef.current, graph_data, viz_text]);
 
   return (
     <Box>
@@ -181,10 +203,27 @@ function Graph3D() {
       {/* LOADING SPINNER */}
       {loading_graph && (
         <Center w="100%" h="100vh" position="fixed" top="0" pointerEvents="none">
-          <Spinner thickness='4px' emptyColor='gray.200' color='orange.500'
-            size='xl' zIndex={-1} />
+          <VStack>
+            <Spinner thickness='4px' emptyColor='gray.200' color='orange.500'
+              size='xl' zIndex={-1} />
+            <Text color="white">{loading_status_text || "Loading ..."}</Text>
+            <Text color="white" fontSize='sm'>(Should take less than 10 seconds on a M3 Mac, on modern internet speeds.)</Text>
+            <Text color="white" fontSize='sm'>(Please do not switch tabs whilst loading.)</Text>
+          </VStack>
         </Center>
       )}
+
+      {/* TOP BAR */}
+      <HStack m={4}>
+        <Button
+          onClick={() => {window.open('https://large-dbt-dag-visualizer.whiai.repl.co/');}}
+          colorScheme="twitter"
+          variant="outline"
+          bgColor="rgba(0,0,0,0.8)"
+        >
+          Go to DAG Visualizer Tool <Icon as={BsBoxArrowUpRight} ml={2} />
+        </Button>
+      </HStack>
 
       {/* INFO PANEL */}
       {show_info && (
@@ -261,16 +300,84 @@ function Graph3D() {
       )}
 
       {/* GRAPH */}
-      <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} bgColor="#333" />
+      <Box className="_graph" ref={containerRef} w="100%" h="100vh" position="fixed" top="0" left="0" zIndex={-2} bgColor="#000235" />
 
     </Box>
   );
 }
 
 export default function App() {
+  const [should_start, setShouldStart] = useState<boolean>(false);
+  const [viz_3d, setViz3d] = useState<boolean>(true);
+  const [viz_size_by_centrality, setVizSizeByCentrality] = useState<boolean>(true);
+  const [viz_overall_quality, setVizOverallQuality] = useState<number>(2);
+  
   return (
     <ChakraProvider>
-      <Graph3D />
+      {!should_start && (
+      <Center bg='#000235' h='100vh'>
+        <Box borderRadius={6} bg='white' w='480px' maxW='100%' m={4} p={4}>
+          <Heading>GitLab DAG Visualizer</Heading>
+          <Text lineHeight='150%' my={4}>
+            This is a fork of <Link color='blue.500' href='https://large-dbt-dag-visualizer.whiai.repl.co/'>Large dbt Dag Visualizer</Link>. It's optimized for larger DAGs like GitLab (less visual effects).
+          </Text>
+          <Alert status='warning' borderRadius={4} my={4}>
+            <AlertIcon />
+            GitLab's DAG is 50mb. It is recommended to close other Tabs and CPU-heavy apps before starting the visualizer.
+          </Alert>
+
+          <Divider my={2} />
+          <Box className="_visualization_settings" px={4}>
+            <Text fontSize='md' fontWeight='bold' textTransform='uppercase'>Visualization Settings</Text>
+            <Divider my={2} />
+            <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Dimensions</Text>
+            <RadioGroup onChange={(value) => { setViz3d(value == '3d') }} value={viz_3d ? '3d' : '2d'}>
+              <Stack direction='row'>
+                <Radio value='3d'>3D</Radio>
+                <Radio value='2d'>2D</Radio>
+              </Stack>
+            </RadioGroup>
+            <Divider my={2} />
+            <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Node Size</Text>
+            <RadioGroup 
+              onChange={(value) => { setVizSizeByCentrality(value == 'centrality') }} 
+              value={viz_size_by_centrality ? 'centrality' : 'constant'}
+            >
+              <Stack direction='row'>
+                <Radio value='centrality'># Dependencies + Children</Radio>
+                <Radio value='constant'>Constant</Radio>
+              </Stack>
+            </RadioGroup>
+            <Divider my={2} />
+            <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Overall Render Quality</Text>
+            <RadioGroup 
+              onChange={(value) => { setVizOverallQuality(Number(value)) }} 
+              value={viz_overall_quality.toString()}
+            >
+              <Stack direction='row'>
+                <Radio value='3'>High</Radio>
+                <Radio value='2'>Medium</Radio>
+                <Radio value='1'>Low</Radio>
+                <Radio value='0'>Very Low</Radio>
+              </Stack>
+            </RadioGroup>
+          </Box>
+          <Divider my={2} />
+          
+          <Button onClick={() => {setShouldStart(true)}} colorScheme='blue' w='100%' mt={6} my={2}>
+            Start Visualizer
+          </Button>
+        </Box>
+      </Center>
+        
+      )}
+      {should_start && (
+        <Graph3D 
+          viz_3d={viz_3d}
+          viz_size_by_centrality={viz_size_by_centrality}
+          viz_overall_quality={viz_overall_quality}
+        />
+      )}
     </ChakraProvider>
   )
 }

@@ -1,35 +1,64 @@
 export function convertManifestToGraph(manifest_json: any): any {
-  let nodes: { id: string, label: string, path: string }[] = [];
+  let nodes: { id: string, label: string, path: string, centrality: number }[] = [];
   let links: { source: string, target: string }[] = [];
 
+  const hide_tests = true;
+
   let manifest_nodes = manifest_json.nodes;
+
+  // MANIFEST NODES
   Object.keys(manifest_nodes).forEach(function(key, index) {
     let node = manifest_nodes[key];
-    // if (node.resource_type == "test") return; // hide "tests"
+    if (hide_tests) {
+      if (node.resource_type == "test") return;
+    }
 
     // Generate Graph Nodes
     let parent_path = node.path.split("/").slice(0, -1).join("/");
-    nodes.push({id: node.unique_id, label: node.name, path: parent_path});
+    nodes.push({
+      id: node.unique_id, 
+      label: node.name, 
+      path: parent_path,
+      centrality: 0
+    });
     // Generate Graph Edges
-    node.depends_on?.nodes?.forEach(function(depend_on_node, index) {
-      // if (depend_on_node.startsWith("test")) return; // hide "tests"
+    node.depends_on?.nodes?.forEach(function(depend_on_node:any, index:number) {
+      if (hide_tests) {
+        if (depend_on_node.startsWith("test")) return; // hide "tests"
+      }
       links.push({source: depend_on_node, target: key});
     });
   });
 
+  // SOURCES NODES
   Object.keys(manifest_json.sources).forEach(function(key, index) {
     let source = manifest_json.sources[key];
     // Generate Graph Nodes
     let parent_path = source.path.split("/").slice(0, -1).join("/");
-    nodes.push({id: source.unique_id, label: source.name, path: parent_path});
+    nodes.push({
+      id: source.unique_id, 
+      label: source.name, 
+      path: parent_path,
+      centrality: 0
+    });
   });
 
+  // CALCULATE CENTRALITY FOR EACH NODE
+  for (var i=0; i<links.length; i++) {
+    let link = links[i];
+    let source_node = nodes.find(node => node.id === link.source); // heavy
+    let target_node = nodes.find(node => node.id === link.target); // heavy
+    source_node.centrality++;
+    target_node.centrality++;
+  }
+
   let graph = {nodes: nodes, links: links};
-  // console.log(graph);
+  // console.log('Graph: ', graph);
+  console.log("Nodes: ", nodes.length, "Edges: ", links.length, "Showing Tests: ", !hide_tests);
   return graph;
 }
 
-function compareArrays(arr1, arr2) {
+function compareArrays(arr1:string[], arr2:string[]) {
     const shared = arr1.filter(value => arr2.includes(value));
     const uniqueToArr1 = arr1.filter(value => !arr2.includes(value));
     const uniqueToArr2 = arr2.filter(value => !arr1.includes(value));
@@ -44,9 +73,9 @@ export function convertManifestsToDiffGraph(base_manifest: any, target_manifest:
       - Color Downstream Nodes of any changes (e.g. blue).
   */
   let nodes = [];
-  let base_node_ids = [];
-  let targ_node_ids = [];
-  let links = [];
+  let base_node_ids:string[] = [];
+  let targ_node_ids:string[] = [];
+  let links:any[] = [];
 
   // NODES (.sources + .nodes)
   // Determine Shared, and Unique to Base/Target (Deleted/Added)
@@ -66,7 +95,7 @@ export function convertManifestsToDiffGraph(base_manifest: any, target_manifest:
   Object.keys(target_manifest.nodes).forEach(function(key, index) {
     let node = target_manifest.nodes[key];
     // Generate Graph Edges
-    node.depends_on?.nodes?.forEach(function(depend_on_node, index) {
+    node.depends_on?.nodes?.forEach(function(depend_on_node:any, index:number) {
       links.push({source: depend_on_node, target: key});
     });
   });
@@ -74,7 +103,7 @@ export function convertManifestsToDiffGraph(base_manifest: any, target_manifest:
   Object.keys(base_manifest.nodes).forEach(function(key, index) {
     let node = base_manifest.nodes[key];
     // Generate Graph Edges
-    node.depends_on?.nodes?.forEach(function(depend_on_node, index) {
+    node.depends_on?.nodes?.forEach(function(depend_on_node:any, index:number) {
       links.push({source: depend_on_node, target: key});
     });
   });
@@ -91,21 +120,8 @@ export function getManifestNodeDetails(id: string, manifesst_data: any): any { /
   } else {
     manifest_elements = manifesst_data.nodes;
   }
-  
   let node: any = manifest_elements![id];
   return node;
-  // if (!node) return 'n/a';
-  
-//   let details = `
-// <div>${node.name}</div>
-// <ul>
-//   <li>type: ${node.resource_type}</li>
-//   <li>path: ${node.original_file_path}</li>
-//   <li>description: ${node.description || node.source_description}</li>
-//   <li>...todo: more details...</li>
-// </ul>
-//   `;
-//   return details;
 }
 
 export function prettifyFilename(filename: string): string {
