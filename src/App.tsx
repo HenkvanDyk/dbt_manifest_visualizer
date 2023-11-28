@@ -5,7 +5,7 @@ import { Menu, MenuButton, MenuList, MenuItem, MenuItemOption, MenuGroup, MenuOp
 import {Alert, AlertIcon, AlertTitle, AlertDescription} from '@chakra-ui/react'
 import { Radio, RadioGroup } from '@chakra-ui/react'
 import { useToast } from '@chakra-ui/react'
-import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill, BsXLg, BsBoxArrowUpRight } from 'react-icons/bs'
+import { BsChevronDown, BsFileEarmarkCode, BsFillFileEarmarkCodeFill, BsPlusLg, BsEyeFill, BsFileEarmarkDiff, BsFileEarmarkDiffFill, BsXLg, BsBoxArrowUpRight, BsArrowClockwise } from 'react-icons/bs'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 
 import ForceGraph3D from '3d-force-graph';
@@ -29,11 +29,13 @@ import SpriteText from 'three-spritetext';
 function Graph3D({
   viz_3d,
   viz_size_by_centrality,
-  viz_overall_quality
+  viz_overall_quality,
+  viz_show_tests
 }:{
   viz_3d: boolean;
   viz_size_by_centrality: boolean;
   viz_overall_quality: number;
+  viz_show_tests: boolean;
 }) {
   const example_manifest_files = [
     "gitlab_manifest.min.json", // with tests this is ~ 9K nodes. Without tests, this is ~ 4K nodes.
@@ -58,9 +60,10 @@ function Graph3D({
 
   // Manifest File -> Manifest Data
   useEffect(() => {
-    setLoadingStatusText(`1. Downloading Manifest: ${selected_manifest} (48.1 MB)`);
+    setLoadingStatusText(`1. Fetching Manifest: https://dbt.gitlabdata.com/manifest.json (48.1 MB)`);
     setLoadingGraph(true);
-    fetch(`/data/example_manifests/${selected_manifest}`)
+    //fetch(`/data/example_manifests/${selected_manifest}`)
+    fetch('https://dbt.gitlabdata.com/manifest.json')
       .then((response) => response.json())
       .then((manifest_data) => {
         setManifestData(manifest_data);
@@ -77,7 +80,7 @@ function Graph3D({
   useEffect(() => {
     if (!manifest_data) return;
     setLoadingStatusText("2. Drawing Graph");
-    let graphData = utils.convertManifestToGraph(manifest_data);
+    let graphData = utils.convertManifestToGraph(manifest_data, viz_show_tests);
     setGraphData(graphData);
   }, [manifest_data]);
 
@@ -217,11 +220,19 @@ function Graph3D({
       <HStack m={4}>
         <Button
           onClick={() => {window.open('https://large-dbt-dag-visualizer.whiai.repl.co/');}}
+          colorScheme="yellow"
+          // variant="outline"
+          // bgColor="rgba(0,0,0,0.8)"
+        >
+          Go to DAG Visualizer Tool <Icon as={BsBoxArrowUpRight} ml={2} />
+        </Button>
+        <Button
+          onClick={() => {location.reload();}}
           colorScheme="twitter"
           variant="outline"
           bgColor="rgba(0,0,0,0.8)"
         >
-          Go to DAG Visualizer Tool <Icon as={BsBoxArrowUpRight} ml={2} />
+          Visualization Settings (Refresh) <Icon as={BsArrowClockwise} ml={2} />
         </Button>
       </HStack>
 
@@ -311,6 +322,13 @@ export default function App() {
   const [viz_3d, setViz3d] = useState<boolean>(true);
   const [viz_size_by_centrality, setVizSizeByCentrality] = useState<boolean>(true);
   const [viz_overall_quality, setVizOverallQuality] = useState<number>(2);
+  const [viz_show_tests, setVizShowTests] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (viz_show_tests == true) {
+      setVizOverallQuality(Math.max(viz_overall_quality - 1, 0));
+    }
+  }, [viz_show_tests])
   
   return (
     <ChakraProvider>
@@ -361,6 +379,17 @@ export default function App() {
                 <Radio value='0'>Very Low</Radio>
               </Stack>
             </RadioGroup>
+            {/* <Divider my={2} />
+            <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>dbt Tests</Text>
+            <RadioGroup 
+              onChange={(value) => { setVizShowTests(value == 'show') }} 
+              value={viz_show_tests ? 'show' : 'hide'}
+            >
+              <Stack direction='row'>
+                <Radio value='hide'>Hide Test Nodes</Radio>
+                <Radio value='show'>Show Test Nodes</Radio>
+              </Stack>
+            </RadioGroup> */}
           </Box>
           <Divider my={2} />
           
@@ -376,6 +405,7 @@ export default function App() {
           viz_3d={viz_3d}
           viz_size_by_centrality={viz_size_by_centrality}
           viz_overall_quality={viz_overall_quality}
+          viz_show_tests={viz_show_tests}
         />
       )}
     </ChakraProvider>

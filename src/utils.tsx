@@ -1,15 +1,11 @@
-export function convertManifestToGraph(manifest_json: any): any {
+export function convertManifestToGraph(manifest_json: any, show_tests: boolean): any {
   let nodes: { id: string, label: string, path: string, centrality: number }[] = [];
   let links: { source: string, target: string }[] = [];
 
-  const hide_tests = true;
-
-  let manifest_nodes = manifest_json.nodes;
-
   // MANIFEST NODES
-  Object.keys(manifest_nodes).forEach(function(key, index) {
-    let node = manifest_nodes[key];
-    if (hide_tests) {
+  Object.keys(manifest_json.nodes).forEach(function(key, index) {
+    let node = manifest_json.nodes[key];
+    if (!show_tests) {
       if (node.resource_type == "test") return;
     }
 
@@ -23,7 +19,7 @@ export function convertManifestToGraph(manifest_json: any): any {
     });
     // Generate Graph Edges
     node.depends_on?.nodes?.forEach(function(depend_on_node:any, index:number) {
-      if (hide_tests) {
+      if (!show_tests) {
         if (depend_on_node.startsWith("test")) return; // hide "tests"
       }
       links.push({source: depend_on_node, target: key});
@@ -48,13 +44,13 @@ export function convertManifestToGraph(manifest_json: any): any {
     let link = links[i];
     let source_node = nodes.find(node => node.id === link.source); // heavy
     let target_node = nodes.find(node => node.id === link.target); // heavy
-    source_node.centrality++;
-    target_node.centrality++;
+    if (source_node) source_node.centrality++;
+    if (target_node) target_node.centrality++;
   }
 
   let graph = {nodes: nodes, links: links};
   // console.log('Graph: ', graph);
-  console.log("Nodes: ", nodes.length, "Edges: ", links.length, "Showing Tests: ", !hide_tests);
+  console.log("Nodes: ", nodes.length, "Edges: ", links.length, "Showing Tests: ", show_tests);
   return graph;
 }
 
