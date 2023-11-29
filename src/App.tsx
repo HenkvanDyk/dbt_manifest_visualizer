@@ -11,7 +11,7 @@ import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody,
 import ForceGraph3D from '3d-force-graph';
 import * as utils from './utils';
 
-import * as THREE from 'three';
+// import * as THREE from 'three';
 import SpriteText from 'three-spritetext';
 
 /* TODO: 
@@ -164,7 +164,7 @@ function Graph3D({
       // Label via Sprite
         Graph
           .nodeThreeObject((node:any) => { // As Sprites
-            const sprite = new SpriteText(node.label);
+            const sprite:any = new SpriteText(node.label);
             sprite.material.depthWrite = false; // make sprite background transparent
             sprite.color = node.color;
             sprite.textHeight = 3;
@@ -219,7 +219,7 @@ function Graph3D({
       {/* TOP BAR */}
       <HStack m={4}>
         <Button
-          onClick={() => {window.open('https://large-dbt-dag-visualizer.whiai.repl.co/');}}
+          onClick={() => {window.open('https://large-dbt-dag-visualizer.replit.app/');}}
           colorScheme="yellow"
           // variant="outline"
           // bgColor="rgba(0,0,0,0.8)"
@@ -337,7 +337,7 @@ export default function App() {
         <Box borderRadius={6} bg='white' w='480px' maxW='100%' m={4} p={4}>
           <Heading>GitLab DAG Visualizer</Heading>
           <Text lineHeight='150%' my={4}>
-            This is a fork of <Link color='blue.500' href='https://large-dbt-dag-visualizer.whiai.repl.co/'>Large dbt Dag Visualizer</Link>. It's optimized for larger DAGs like GitLab (less visual effects).
+            This is a fork of <Link color='blue.500' href='https://large-dbt-dag-visualizer.replit.app/'>Large dbt Dag Visualizer</Link>. It's optimized for larger DAGs like GitLab (less visual effects).
           </Text>
           <Alert status='warning' borderRadius={4} my={4}>
             <AlertIcon />
