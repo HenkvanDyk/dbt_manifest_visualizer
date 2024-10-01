@@ -285,6 +285,17 @@ function Graph3D({
                     </Button>
                   </HStack>
 
+                    {/* Add Materialization Info */}
+                  <VStack spacing={0} alignItems="baseline" my={2}>
+                    <Text fontSize='sm' fontWeight="bold" textTransform="uppercase" opacity={0.6}>
+                      Materialization
+                    </Text>
+                    <Text>
+                      {cur_node_details.config?.materialized || "Not specified"}
+                    </Text>
+                  </VStack>
+                  <Divider my={2} />
+
                   <VStack spacing={0} alignItems="baseline" my={2}>
                     <Text fontSize='sm' fontWeight="bold" textTransform="uppercase" opacity={0.6}>
                       Description
