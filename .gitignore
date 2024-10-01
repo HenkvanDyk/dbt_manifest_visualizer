@@ -1,5 +1,6 @@
-public/data/*
+public/data/
 *.sqllite
-node_modules/*
+node_modules/
 .upm/*
 .cache/*
+.config/*

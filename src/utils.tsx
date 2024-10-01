@@ -1,5 +1,5 @@
 export function convertManifestToGraph(manifest_json: any, show_tests: boolean): any {
-  let nodes: { id: string, label: string, path: string, centrality: number }[] = [];
+  let nodes: { id: string, label: string, path: string, schema:string, centrality: number }[] = [];
   let links: { source: string, target: string }[] = [];
 
   // MANIFEST NODES
@@ -11,12 +11,36 @@ export function convertManifestToGraph(manifest_json: any, show_tests: boolean):
 
     // Generate Graph Nodes
     let parent_path = node.path.split("/").slice(0, -1).join("/");
-    nodes.push({
-      id: node.unique_id, 
-      label: node.name, 
-      path: parent_path,
-      centrality: 0
-    });
+
+    // allow mapping of input schemas to data states
+    const mapping = new Map([
+        ["staging", "raw"],
+        ["landing","raw"],
+        ["intermediate", "transformations"],
+        ["facts", "modelling"],
+        ["dims", "modelling"],
+        ["marts", "serving"],
+      ]
+      )
+    let new_schema = mapping.get(node.schema.toLowerCase())
+    if (new_schema===undefined){
+      nodes.push({
+        id: node.unique_id, 
+        label: node.name, 
+        path: parent_path,
+        schema: node.schema,
+        centrality: 0
+      });
+    }
+    else{
+      nodes.push({
+        id: node.unique_id, 
+        label: node.name, 
+        path: parent_path,
+        schema: new_schema,
+        centrality: 0
+      })
+    }
     // Generate Graph Edges
     node.depends_on?.nodes?.forEach(function(depend_on_node:any, index:number) {
       if (!show_tests) {
@@ -31,12 +55,36 @@ export function convertManifestToGraph(manifest_json: any, show_tests: boolean):
     let source = manifest_json.sources[key];
     // Generate Graph Nodes
     let parent_path = source.path.split("/").slice(0, -1).join("/");
-    nodes.push({
-      id: source.unique_id, 
-      label: source.name, 
-      path: parent_path,
-      centrality: 0
-    });
+
+    const mapping = new Map([
+      ["staging", "raw"],
+      ["landing","raw"],
+      ["intermediate", "transformations"],
+      ["facts", "modelling"],
+      ["dims", "modelling"],
+      ["marts", "serving"],
+    ]
+    )
+    let new_schema = mapping.get(source.schema.toLowerCase())
+    if (new_schema===undefined){
+      nodes.push({
+        id: source.unique_id, 
+        label: source.name, 
+        path: parent_path,
+        schema: source.schema,
+        centrality: 0
+      });
+    }
+    else{
+      nodes.push({
+        id: source.unique_id, 
+        label: source.name, 
+        path: parent_path,
+        schema: new_schema,
+        centrality: 0
+      })
+    }
+
   });
 
   // CALCULATE CENTRALITY FOR EACH NODE

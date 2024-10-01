@@ -121,7 +121,7 @@ function Graph3D({
       // .nodeResolution(6) // default = 8
       .backgroundColor('#000003')
       .nodeLabel('label')
-      .nodeAutoColorBy('path')
+      .nodeAutoColorBy('schema')
       .nodeOpacity(1.0)
 
       // ix
