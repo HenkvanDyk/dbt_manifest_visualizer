@@ -40,7 +40,7 @@ function Graph3D({
   viz_layout: string;
 }) {
   const example_manifest_files = [
-    "gitlab_manifest.min.json", // with tests this is ~ 9K nodes. Without tests, this is ~ 4K nodes.
+    "manifest.json",
     "mattermost_pr1339_target_28c6f456.json",
     "hokkien_pr14_target.json",
     "tuva.json",
@@ -62,10 +62,10 @@ function Graph3D({
   // Manifest File -> Manifest Data
   useEffect(() => {
     if (!selected_manifest) return;
-    setLoadingStatusText(`1. Fetching Manifest: https://dbt.gitlabdata.com/manifest.json (48.1 MB)`);
-    setLoadingGraph(true);
-    //fetch(`/data/example_manifests/${selected_manifest}`)
-    fetch('https://dbt.gitlabdata.com/manifest.json')
+    // setLoadingStatusText(`1. Fetching Manifest: https://dbt.gitlabdata.com/manifest.json (48.1 MB)`);
+    // setLoadingGraph(true);
+    // fetch('https://dbt.gitlabdata.com/manifest.json')
+    fetch(`/data/example_manifests/manifest.json`)
       .then((response) => response.json())
       .then((manifest_data) => {
         setManifestData(manifest_data);
@@ -374,8 +374,8 @@ export default function App() {
               <Divider my={2} />
               <Text fontSize='sm' fontWeight='bold' textTransform='uppercase'>Layout</Text>
               <RadioGroup onChange={(value) => {
-                  setVizLayout(value); setViz3d((value == 'force')); setVizSizeByCentrality((value == 'force'))
-                }}
+                setVizLayout(value); setViz3d((value == 'force')); setVizSizeByCentrality((value == 'force'))
+              }}
                 value={viz_layout}
               >
                 <Stack direction='row'>

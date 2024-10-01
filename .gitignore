@@ -1,0 +1,5 @@
+public/data/*
+*.sqllite
+node_modules/*
+.upm/*
+.cache/*
